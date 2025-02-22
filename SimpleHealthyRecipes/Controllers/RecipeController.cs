@@ -26,7 +26,7 @@ public class RecipeController(IRecipeService recipeService) : ControllerBase
     public async Task<IActionResult> GetById([FromRoute] int id)
     {
         var response = await recipeService.GetByIdAsync(new GetRecipeByIdRequest(id));
-        return response.Success ? Ok(response) : NotFound(response);
+        return response != null ? Ok(response) : NotFound(response);
     }
 
     /// <summary>
@@ -36,7 +36,7 @@ public class RecipeController(IRecipeService recipeService) : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateRecipeRequest request)
     {
         var response = await recipeService.CreateAsync(request);
-        return response.Success ? CreatedAtAction(nameof(GetById), new { id = response.Data?.Id }, response) : BadRequest(response);
+        return response.Success ? CreatedAtAction(nameof(GetById), new { id = response.Id }, response) : BadRequest(response);
     }
 
     /// <summary>
@@ -46,7 +46,7 @@ public class RecipeController(IRecipeService recipeService) : ControllerBase
     public async Task<IActionResult> Update([FromBody] UpdateRecipeRequest request)
     {
         var response = await recipeService.UpdateAsync(request);
-        return response.Success ? Ok(response) : NotFound(response);
+        return response != null ? Ok(response) : NotFound(response);
     }
 
     /// <summary>

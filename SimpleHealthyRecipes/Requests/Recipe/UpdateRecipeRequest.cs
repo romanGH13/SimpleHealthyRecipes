@@ -1,4 +1,5 @@
-﻿using SimpleHealthyRecipes.Requests.Base;
+﻿using SimpleHealthyRecipes.Enums;
+using SimpleHealthyRecipes.Requests.Base;
 using SimpleHealthyRecipes.Requests.Ingredient;
 using System.ComponentModel.DataAnnotations;
 
@@ -11,6 +12,9 @@ public record UpdateRecipeRequest(
     int PrepTimeMinutes,
     int CookTimeMinutes,
     int Servings,
-    bool IsVegetarian,
-    List<CreateIngredientRequest> Ingredients
+    int? CuisineId,
+    DifficultyLevel Difficulty,
+    List<CreateIngredientRequest> Ingredients,
+    List<CreateRecipeStepRequest> Steps,
+    List<string> Tags
 ) : BaseRequest;

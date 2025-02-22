@@ -7,6 +7,5 @@ public record IngredientDTO
     public string Name { get; init; } = string.Empty;
     public double Quantity { get; init; }
     public MeasurementUnit Unit { get; init; }
-
     public IngredientDTO() { }
 }

@@ -3,10 +3,9 @@ using SimpleHealthyRecipes.Models.Base;
 
 namespace SimpleHealthyRecipes.Models;
 
-public class Category : BaseEntity<int>
+public class CategoryModel : BaseEntity<int>
 {
     [Required]
     public string Name { get; set; } = string.Empty;
-
-    public List<Recipe> Recipes { get; set; } = [];
+    public List<RecipeModel> Recipes { get; set; } = [];
 }

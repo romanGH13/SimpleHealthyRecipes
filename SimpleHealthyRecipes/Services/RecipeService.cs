@@ -10,117 +10,121 @@ using SimpleHealthyRecipes.Services.Interfaces;
 
 namespace SimpleHealthyRecipes.Services;
 
-public class RecipeService(IRecipeRepository recipeRepository, IMapper mapper) : IRecipeService
+public class RecipeService(IRecipeRepository recipeRepository, ITagRepository tagRepository, IMapper mapper) : IRecipeService
 {
-    public async Task<PagedResponse<RecipeSummaryDTO>> GetAllAsync(GetRecipesRequest request)
+    private readonly IRecipeRepository _recipeRepository = recipeRepository;
+
+    public async Task<PagedResponse<BaseRecipeDTO>> GetAllAsync(GetRecipesRequest request)
     {
-        var query = recipeRepository.GetQueryable();
-
-        if (!string.IsNullOrEmpty(request.SearchTerm))
+        var recipes = await _recipeRepository.GetFilteredRecipesAsync(request);
+        var recipeDTOs = recipes.Select(r => new BaseRecipeDTO
         {
-            query = query.Where(r => r.Title.Contains(request.SearchTerm) || r.Description.Contains(request.SearchTerm));
-        }
+            Id = r.Id,
+            Title = r.Title,
+            PrepTimeMinutes = r.PrepTimeMinutes,
+            CookTimeMinutes = r.CookTimeMinutes,
+            Servings = r.Servings,
+            AverageRating = r.Ratings.Any() ? r.Ratings.Average(r => r.Stars) : 0
+        }).ToList();
 
-        if (request.IsVegetarian.HasValue)
-        {
-            query = query.Where(r => r.IsVegetarian == request.IsVegetarian.Value);
-        }
-
-        if (request.MinPrepTime.HasValue)
-        {
-            query = query.Where(r => r.PrepTimeMinutes >= request.MinPrepTime.Value);
-        }
-
-        if (request.MaxPrepTime.HasValue)
-        {
-            query = query.Where(r => r.PrepTimeMinutes <= request.MaxPrepTime.Value);
-        }
-
-        var (Items, TotalCount) = await query.PageAsync(request);
-
-        return new PagedResponse<RecipeSummaryDTO>(
-            "Recipes retrieved successfully",
+        return new PagedResponse<BaseRecipeDTO>("Recipes retrieved successfully",
             true,
-            mapper.Map<List<RecipeSummaryDTO>>(Items),
+            recipeDTOs,
             request.Page,
             request.PageSize,
-            TotalCount
-        );
+            recipes.Count);
     }
 
-    public async Task<RecipeResponse> GetByIdAsync(GetRecipeByIdRequest request)
+    public async Task<DetailedRecipeDTO> GetByIdAsync(GetRecipeByIdRequest request)
     {
-        var recipe = await recipeRepository.GetByIdWithDetailsAsync(request.Id);
+        var recipe = await _recipeRepository.GetByIdWithDetailsAsync(request.Id);
         if (recipe == null)
-        {
-            return new RecipeResponse("Recipe not found", false, null);
-        }
-        var recipeDto = mapper.Map<RecipeDTO>(recipe);
-        return new RecipeResponse("Recipe retrieved successfully", true, recipeDto);
+            throw new KeyNotFoundException("Recipe not found");
+
+        return mapper.Map<DetailedRecipeDTO>(recipe);
     }
 
     public async Task<CreateRecipeResponse> CreateAsync(CreateRecipeRequest request)
     {
-        var recipe = new Recipe
+        var newRecipe = new RecipeModel
         {
             Title = request.Title,
             Description = request.Description,
             PrepTimeMinutes = request.PrepTimeMinutes,
             CookTimeMinutes = request.CookTimeMinutes,
             Servings = request.Servings,
-            IsVegetarian = request.IsVegetarian,
-            Ingredients = request.Ingredients.Select(i => new Ingredient
+            CuisineId = request.CuisineId,
+            Difficulty = request.Difficulty,
+            Ingredients = request.Ingredients.Select(i => new IngredientModel
             {
                 Name = i.Name,
                 Quantity = i.Quantity,
                 Unit = i.Unit
+            }).ToList(),
+            Steps = request.Steps.Select(s => new RecipeStepModel
+            {
+                StepNumber = s.StepNumber,
+                Instruction = s.Instruction,
+                ImageUrl = s.ImageUrl
             }).ToList()
         };
 
-        await recipeRepository.AddAsync(recipe);
-        var recipeDto = mapper.Map<RecipeDTO>(recipe);
-        return new CreateRecipeResponse("Recipe created successfully", true, recipeDto);
+        // Обробка тегів: знайти існуючі, створити нові
+        var existingTags = await tagRepository.GetByNamesAsync(request.Tags);
+        var existingTagNames = existingTags.Select(t => t.Name).ToHashSet();
+        var newTags = request.Tags.Where(tag => !existingTagNames.Contains(tag))
+                                  .Select(tag => new TagModel { Name = tag }).ToList();
+
+        // Додаємо існуючі та нові теги
+        newRecipe.Tags = existingTags.Concat(newTags).ToList();
+
+        await recipeRepository.AddAsync(newRecipe);
+        await tagRepository.AddRangeAsync(newTags); // Додаємо нові теги в БД
+
+        return new CreateRecipeResponse(
+            "Recipe created successfully",
+            true,
+            newRecipe.Id
+        );
     }
 
-    public async Task<RecipeResponse> UpdateAsync(UpdateRecipeRequest request)
+    public async Task<DetailedRecipeDTO> UpdateAsync(UpdateRecipeRequest request)
     {
-        var recipe = await recipeRepository.GetByIdWithDetailsAsync(request.Id);
+        var recipe = await _recipeRepository.GetByIdWithDetailsAsync(request.Id);
         if (recipe == null)
-        {
-            return new RecipeResponse("Recipe not found", false, null);
-        }
+            throw new KeyNotFoundException("Recipe not found");
 
-        // Оновлюємо поля рецепта
         recipe.Title = request.Title;
         recipe.Description = request.Description;
         recipe.PrepTimeMinutes = request.PrepTimeMinutes;
         recipe.CookTimeMinutes = request.CookTimeMinutes;
         recipe.Servings = request.Servings;
-        recipe.IsVegetarian = request.IsVegetarian;
+        recipe.CuisineId = request.CuisineId;
+        recipe.Difficulty = request.Difficulty;
 
-        // Припустимо, що оновлення інгредієнтів виконується повністю (можна розширити логику)
-        recipe.Ingredients = request.Ingredients.Select(i => new Ingredient
-        {
-            Name = i.Name,
-            Quantity = i.Quantity,
-            Unit = i.Unit,
-            RecipeId = recipe.Id
-        }).ToList();
+        // Оновлення тегів
+        var existingTags = await tagRepository.GetByNamesAsync(request.Tags);
+        var existingTagNames = existingTags.Select(t => t.Name).ToHashSet();
+        var newTags = request.Tags.Where(tag => !existingTagNames.Contains(tag))
+                                  .Select(tag => new TagModel { Name = tag }).ToList();
 
-        await recipeRepository.UpdateAsync(recipe);
-        var recipeDto = mapper.Map<RecipeDTO>(recipe);
-        return new RecipeResponse("Recipe updated successfully", true, recipeDto);
+        recipe.Tags = existingTags.Concat(newTags).ToList();
+        await tagRepository.AddRangeAsync(newTags);
+
+        await _recipeRepository.UpdateAsync(recipe);
+        return await GetByIdAsync(new GetRecipeByIdRequest(recipe.Id));
     }
 
     public async Task<DeleteRecipeResponse> DeleteAsync(DeleteRecipeRequest request)
     {
-        var recipe = await recipeRepository.GetByIdAsync(request.Id);
+        var recipe = await _recipeRepository.GetByIdWithDetailsAsync(request.Id);
         if (recipe == null)
-        {
-            return new DeleteRecipeResponse("Recipe not found", false);
-        }
+            throw new KeyNotFoundException("Recipe not found");
 
-        await recipeRepository.DeleteAsync(request.Id);
-        return new DeleteRecipeResponse("Recipe deleted successfully", true);
+        await _recipeRepository.DeleteAsync(recipe.Id);
+        return new DeleteRecipeResponse(
+            "Recipe deleted successfully",
+            true
+        );
     }
 }
