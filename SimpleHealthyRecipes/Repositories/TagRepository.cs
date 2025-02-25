@@ -2,6 +2,7 @@
 using SimpleHealthyRecipes.Data;
 using SimpleHealthyRecipes.Models;
 using SimpleHealthyRecipes.Repositories.Base;
+using SimpleHealthyRecipes.Repositories.Interfaces;
 
 namespace SimpleHealthyRecipes.Repositories;
 
@@ -18,5 +19,15 @@ public class TagRepository : BaseRepository<TagModel>, ITagRepository
     {
         await _dbSet.AddRangeAsync(tags);
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<TagModel>> GetAllTagsAsync()
+    {
+        return await _context.Tags.ToListAsync();
+    }
+
+    public async Task<TagModel?> GetTagByIdAsync(int id)
+    {
+        return await _context.Tags.FindAsync(id);
     }
 }

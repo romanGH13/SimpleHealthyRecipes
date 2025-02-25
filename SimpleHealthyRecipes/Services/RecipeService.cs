@@ -2,7 +2,7 @@
 using SimpleHealthyRecipes.DTOs;
 using SimpleHealthyRecipes.Extensions;
 using SimpleHealthyRecipes.Models;
-using SimpleHealthyRecipes.Repositories;
+using SimpleHealthyRecipes.Repositories.Interfaces;
 using SimpleHealthyRecipes.Requests.Recipe;
 using SimpleHealthyRecipes.Responses.Base;
 using SimpleHealthyRecipes.Responses.Recipe;

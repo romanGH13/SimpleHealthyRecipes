@@ -29,5 +29,8 @@ public class MappingProfile : Profile
 
         // Мапінг RecipeStep → RecipeStepDTO
         CreateMap<RecipeStepModel, RecipeStepDTO>().ReverseMap();
+
+        // Мапінг Category → CategoryDTO
+        CreateMap<CategoryModel, CategoryDTO>().ReverseMap();
     }
 }

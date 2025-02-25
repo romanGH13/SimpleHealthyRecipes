@@ -2,7 +2,7 @@
 using SimpleHealthyRecipes.Repositories.Base;
 using SimpleHealthyRecipes.Requests.Recipe;
 
-namespace SimpleHealthyRecipes.Repositories;
+namespace SimpleHealthyRecipes.Repositories.Interfaces;
 
 public interface IRecipeRepository : IBaseRepository<RecipeModel>
 {

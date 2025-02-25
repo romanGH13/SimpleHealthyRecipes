@@ -2,6 +2,7 @@
 using SimpleHealthyRecipes.Data;
 using SimpleHealthyRecipes.Models;
 using SimpleHealthyRecipes.Repositories.Base;
+using SimpleHealthyRecipes.Repositories.Interfaces;
 using SimpleHealthyRecipes.Requests.Recipe;
 
 namespace SimpleHealthyRecipes.Repositories;

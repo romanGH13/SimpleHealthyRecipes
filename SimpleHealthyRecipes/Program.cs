@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SimpleHealthyRecipes.Data;
 using SimpleHealthyRecipes.Mappings;
 using SimpleHealthyRecipes.Repositories;
-using SimpleHealthyRecipes.Repositories.Base;
+using SimpleHealthyRecipes.Repositories.Interfaces;
 using SimpleHealthyRecipes.Services;
 using SimpleHealthyRecipes.Services.Interfaces;
 using System.Text.Json.Serialization;
@@ -14,10 +14,15 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
-//builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
+builder.Services.AddScoped<IRecipeService, RecipeService>(); 
+builder.Services.AddScoped<ICuisineService, CuisineService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<ITagService, TagService>();
 
-builder.Services.AddScoped<IRecipeService, RecipeService>();
 builder.Services.AddScoped<IRecipeRepository, RecipeRepository>();
+builder.Services.AddScoped<ITagRepository, TagRepository>();
+builder.Services.AddScoped<ICuisineRepository, CuisineRepository>(); 
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ITagRepository, TagRepository>();
 
 builder.Services.AddSingleton(new MapperConfiguration(cfg =>
