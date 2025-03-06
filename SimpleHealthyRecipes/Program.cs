@@ -18,12 +18,14 @@ builder.Services.AddScoped<IRecipeService, RecipeService>();
 builder.Services.AddScoped<ICuisineService, CuisineService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ITagService, TagService>();
+builder.Services.AddScoped<IIngredientService, IngredientService>();
 
 builder.Services.AddScoped<IRecipeRepository, RecipeRepository>();
 builder.Services.AddScoped<ITagRepository, TagRepository>();
 builder.Services.AddScoped<ICuisineRepository, CuisineRepository>(); 
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ITagRepository, TagRepository>();
+builder.Services.AddScoped<IIngredientRepository, IngredientRepository>();
 
 builder.Services.AddSingleton(new MapperConfiguration(cfg =>
 {

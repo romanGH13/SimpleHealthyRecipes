@@ -15,14 +15,14 @@ public class BaseRepository<T> : IBaseRepository<T> where T : BaseEntity<int>
         _dbSet = context.Set<T>();
     }
 
-    public IQueryable<T> GetQueryable()
+    public IQueryable<T> GetQueryable(bool asNoTracking = false)
     {
-        return _dbSet.AsQueryable();
+        return asNoTracking ? _dbSet.AsNoTracking() : _dbSet.AsQueryable();
     }
 
     public async Task<List<T>> GetAllAsync()
     {
-        return await _dbSet.ToListAsync();
+        return await _dbSet.AsNoTracking().ToListAsync();
     }
 
     public async Task<T?> GetByIdAsync(int id)
@@ -36,9 +36,16 @@ public class BaseRepository<T> : IBaseRepository<T> where T : BaseEntity<int>
         await _context.SaveChangesAsync();
     }
 
+    public async Task AddRangeAsync(List<T> entities)
+    {
+        await _dbSet.AddRangeAsync(entities);
+        await _context.SaveChangesAsync();
+    }
+
     public async Task UpdateAsync(T entity)
     {
-        _dbSet.Update(entity);
+        _dbSet.Attach(entity);
+        _context.Entry(entity).State = EntityState.Modified;
         await _context.SaveChangesAsync();
     }
 
@@ -50,13 +57,13 @@ public class BaseRepository<T> : IBaseRepository<T> where T : BaseEntity<int>
             if (entity is IDeletable deletableEntity)
             {
                 deletableEntity.IsDeleted = true;
-                await _context.SaveChangesAsync();
+                _dbSet.Update(entity);
             }
             else
             {
                 _dbSet.Remove(entity);
-                await _context.SaveChangesAsync();
             }
+            await _context.SaveChangesAsync();
         }
     }
 

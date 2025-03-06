@@ -14,7 +14,7 @@ public class RecipeRepository : BaseRepository<RecipeModel>, IRecipeRepository
     public async Task<RecipeModel?> GetByIdWithDetailsAsync(int id)
     {
         return await _dbSet
-            .Include(r => r.Ingredients)
+            .Include(r => r.RecipeIngredients)
             .Include(r => r.Tags)
             .Include(r => r.Ratings)
             .Include(r => r.Steps)

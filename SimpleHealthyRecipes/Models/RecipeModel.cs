@@ -17,15 +17,18 @@ public class RecipeModel : DeletableEntity<int>
     public int Servings { get; set; }
     public DifficultyLevel Difficulty { get; set; }
 
-    public List<IngredientModel> Ingredients { get; set; } = [];
-    public List<CategoryModel> Categories { get; set; } = [];
-    public List<TagModel> Tags { get; set; } = [];
-    public List<RatingModel> Ratings { get; set; } = [];
-    public List<RecipeStepModel> Steps { get; set; } = [];
+    public int? MovieReferenceId { get; set; }
+    public MovieReferenceModel? MovieReference { get; set; }
 
     public int? CuisineId { get; set; }
     public CuisineModel? Cuisine { get; set; }
 
-    public int? MovieReferenceId { get; set; }
-    public MovieReferenceModel? MovieReference { get; set; }
+    public int? CategoryId { get; set; }
+    public CategoryModel? Category { get; set; }
+
+    public List<RecipeIngredientModel> RecipeIngredients { get; set; } = [];
+    public List<TagModel> Tags { get; set; } = [];
+    public List<RatingModel> Ratings { get; set; } = [];
+    public List<RecipeStepModel> Steps { get; set; } = [];
+
 }

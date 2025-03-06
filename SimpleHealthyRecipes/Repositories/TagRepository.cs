@@ -15,12 +15,6 @@ public class TagRepository : BaseRepository<TagModel>, ITagRepository
         return await _dbSet.Where(t => tagNames.Contains(t.Name)).ToListAsync();
     }
 
-    public async Task AddRangeAsync(List<TagModel> tags)
-    {
-        await _dbSet.AddRangeAsync(tags);
-        await _context.SaveChangesAsync();
-    }
-
     public async Task<List<TagModel>> GetAllTagsAsync()
     {
         return await _context.Tags.ToListAsync();

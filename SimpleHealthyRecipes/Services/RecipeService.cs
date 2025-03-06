@@ -2,7 +2,9 @@
 using SimpleHealthyRecipes.DTOs;
 using SimpleHealthyRecipes.Extensions;
 using SimpleHealthyRecipes.Models;
+using SimpleHealthyRecipes.Repositories;
 using SimpleHealthyRecipes.Repositories.Interfaces;
+using SimpleHealthyRecipes.Requests.Ingredient;
 using SimpleHealthyRecipes.Requests.Recipe;
 using SimpleHealthyRecipes.Responses.Base;
 using SimpleHealthyRecipes.Responses.Recipe;
@@ -10,22 +12,13 @@ using SimpleHealthyRecipes.Services.Interfaces;
 
 namespace SimpleHealthyRecipes.Services;
 
-public class RecipeService(IRecipeRepository recipeRepository, ITagRepository tagRepository, IMapper mapper) : IRecipeService
+public class RecipeService(IRecipeRepository recipeRepository, ITagRepository tagRepository, IMapper mapper, IIngredientRepository ingredientRepository) : IRecipeService
 {
-    private readonly IRecipeRepository _recipeRepository = recipeRepository;
 
     public async Task<PagedResponse<BaseRecipeDTO>> GetAllAsync(GetRecipesRequest request)
     {
-        var recipes = await _recipeRepository.GetFilteredRecipesAsync(request);
-        var recipeDTOs = recipes.Select(r => new BaseRecipeDTO
-        {
-            Id = r.Id,
-            Title = r.Title,
-            PrepTimeMinutes = r.PrepTimeMinutes,
-            CookTimeMinutes = r.CookTimeMinutes,
-            Servings = r.Servings,
-            AverageRating = r.Ratings.Any() ? r.Ratings.Average(r => r.Stars) : 0
-        }).ToList();
+        var recipes = await recipeRepository.GetFilteredRecipesAsync(request);
+        var recipeDTOs = mapper.Map<List<BaseRecipeDTO>>(recipes);
 
         return new PagedResponse<BaseRecipeDTO>("Recipes retrieved successfully",
             true,
@@ -37,7 +30,7 @@ public class RecipeService(IRecipeRepository recipeRepository, ITagRepository ta
 
     public async Task<DetailedRecipeDTO> GetByIdAsync(GetRecipeByIdRequest request)
     {
-        var recipe = await _recipeRepository.GetByIdWithDetailsAsync(request.Id);
+        var recipe = await recipeRepository.GetByIdWithDetailsAsync(request.Id);
         if (recipe == null)
             throw new KeyNotFoundException("Recipe not found");
 
@@ -46,6 +39,10 @@ public class RecipeService(IRecipeRepository recipeRepository, ITagRepository ta
 
     public async Task<CreateRecipeResponse> CreateAsync(CreateRecipeRequest request)
     {
+        var recipeIngredients = await ProcessIngredientsAsync(request.Ingredients);
+        var steps = ProcessSteps(request.Steps);
+        var tags = await ProcessTagsAsync(request.Tags);
+
         var newRecipe = new RecipeModel
         {
             Title = request.Title,
@@ -55,42 +52,76 @@ public class RecipeService(IRecipeRepository recipeRepository, ITagRepository ta
             Servings = request.Servings,
             CuisineId = request.CuisineId,
             Difficulty = request.Difficulty,
-            Ingredients = request.Ingredients.Select(i => new IngredientModel
-            {
-                Name = i.Name,
-                Quantity = i.Quantity,
-                Unit = i.Unit
-            }).ToList(),
-            Steps = request.Steps.Select(s => new RecipeStepModel
-            {
-                StepNumber = s.StepNumber,
-                Instruction = s.Instruction,
-                ImageUrl = s.ImageUrl
-            }).ToList()
+            RecipeIngredients = recipeIngredients,
+            Steps = steps,
+            Tags = tags
         };
 
-        // Обробка тегів: знайти існуючі, створити нові
-        var existingTags = await tagRepository.GetByNamesAsync(request.Tags);
-        var existingTagNames = existingTags.Select(t => t.Name).ToHashSet();
-        var newTags = request.Tags.Where(tag => !existingTagNames.Contains(tag))
-                                  .Select(tag => new TagModel { Name = tag }).ToList();
-
-        // Додаємо існуючі та нові теги
-        newRecipe.Tags = existingTags.Concat(newTags).ToList();
-
         await recipeRepository.AddAsync(newRecipe);
-        await tagRepository.AddRangeAsync(newTags); // Додаємо нові теги в БД
-
-        return new CreateRecipeResponse(
-            "Recipe created successfully",
-            true,
-            newRecipe.Id
-        );
+        return new CreateRecipeResponse("Recipe created successfully", true, newRecipe.Id);
     }
+
+    private async Task<List<RecipeIngredientModel>> ProcessIngredientsAsync(List<CreateIngredientRequest> ingredientRequests)
+    {
+        var ingredientNames = ingredientRequests.Select(i => i.Name).Distinct().ToList();
+        var existingIngredients = await ingredientRepository.GetByNamesAsync(ingredientNames);
+        var existingIngredientDict = existingIngredients.ToDictionary(i => i.Name, i => i);
+
+        var newIngredients = new List<IngredientModel>();
+        var recipeIngredients = new List<RecipeIngredientModel>();
+
+        foreach (var i in ingredientRequests)
+        {
+            if (!existingIngredientDict.TryGetValue(i.Name, out var ingredient))
+            {
+                ingredient = new IngredientModel
+                {
+                    Name = i.Name,
+                    CaloriesPer100g = 0,
+                    ProteinPer100g = 0,
+                    FatPer100g = 0,
+                    CarbohydratesPer100g = 0
+                };
+                newIngredients.Add(ingredient);
+            }
+
+            recipeIngredients.Add(new RecipeIngredientModel
+            {
+                Ingredient = ingredient,
+                Quantity = i.Quantity,
+                Unit = i.Unit
+            });
+        }
+
+        await ingredientRepository.AddRangeAsync(newIngredients);
+        return recipeIngredients;
+    }
+
+    private List<RecipeStepModel> ProcessSteps(List<CreateRecipeStepRequest> stepRequests)
+    {
+        return stepRequests.Select(s => new RecipeStepModel
+        {
+            StepNumber = s.StepNumber,
+            Instruction = s.Instruction,
+            ImageUrl = s.ImageUrl
+        }).ToList();
+    }
+
+    private async Task<List<TagModel>> ProcessTagsAsync(List<string> tagNames)
+    {
+        var existingTags = await tagRepository.GetByNamesAsync(tagNames);
+        var existingTagNames = existingTags.Select(t => t.Name).ToHashSet();
+        var newTags = tagNames.Where(tag => !existingTagNames.Contains(tag))
+                              .Select(tag => new TagModel { Name = tag }).ToList();
+
+        await tagRepository.AddRangeAsync(newTags);
+        return existingTags.Concat(newTags).ToList();
+    }
+
 
     public async Task<DetailedRecipeDTO> UpdateAsync(UpdateRecipeRequest request)
     {
-        var recipe = await _recipeRepository.GetByIdWithDetailsAsync(request.Id);
+        var recipe = await recipeRepository.GetByIdWithDetailsAsync(request.Id);
         if (recipe == null)
             throw new KeyNotFoundException("Recipe not found");
 
@@ -111,17 +142,17 @@ public class RecipeService(IRecipeRepository recipeRepository, ITagRepository ta
         recipe.Tags = existingTags.Concat(newTags).ToList();
         await tagRepository.AddRangeAsync(newTags);
 
-        await _recipeRepository.UpdateAsync(recipe);
+        await recipeRepository.UpdateAsync(recipe);
         return await GetByIdAsync(new GetRecipeByIdRequest(recipe.Id));
     }
 
     public async Task<DeleteRecipeResponse> DeleteAsync(DeleteRecipeRequest request)
     {
-        var recipe = await _recipeRepository.GetByIdWithDetailsAsync(request.Id);
+        var recipe = await recipeRepository.GetByIdWithDetailsAsync(request.Id);
         if (recipe == null)
             throw new KeyNotFoundException("Recipe not found");
 
-        await _recipeRepository.DeleteAsync(recipe.Id);
+        await recipeRepository.DeleteAsync(recipe.Id);
         return new DeleteRecipeResponse(
             "Recipe deleted successfully",
             true

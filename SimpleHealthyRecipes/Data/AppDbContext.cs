@@ -1,20 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SimpleHealthyRecipes.Models;
+using SimpleHealthyRecipes.Models.Base;
 
 namespace SimpleHealthyRecipes.Data;
-
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using Microsoft.EntityFrameworkCore;
-using System.Threading;
-using System.Threading.Tasks;
-using System;
-using SimpleHealthyRecipes.Models.Base;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<RecipeModel> Recipes { get; set; }
     public DbSet<IngredientModel> Ingredients { get; set; }
+    public DbSet<RecipeIngredientModel> RecipeIngredients { get; set; }
     public DbSet<CategoryModel> Categories { get; set; }
     public DbSet<TagModel> Tags { get; set; }
     public DbSet<RatingModel> Ratings { get; set; }
@@ -34,10 +28,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     {
         base.OnModelCreating(modelBuilder);
 
-        var createdAt = new DateTime(2024, 2, 24, 0, 0, 0, DateTimeKind.Utc); // Статична дата
+        var createdAt = new DateTime(2024, 2, 24, 0, 0, 0, DateTimeKind.Utc);
         var modifiedAt = createdAt;
 
-        // Seed дані для Cuisine
+        // Seed data for Cuisine
         modelBuilder.Entity<CuisineModel>().HasData(
             new CuisineModel { Id = 1, Name = "Italian", CreatedAt = createdAt, ModifiedAt = modifiedAt },
             new CuisineModel { Id = 2, Name = "French", CreatedAt = createdAt, ModifiedAt = modifiedAt },
@@ -46,7 +40,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             new CuisineModel { Id = 5, Name = "Mexican", CreatedAt = createdAt, ModifiedAt = modifiedAt }
         );
 
-        // Seed дані для Category
+        // Seed data for Category
         modelBuilder.Entity<CategoryModel>().HasData(
             new CategoryModel { Id = 1, Name = "Breakfast", CreatedAt = createdAt, ModifiedAt = modifiedAt },
             new CategoryModel { Id = 2, Name = "Lunch", CreatedAt = createdAt, ModifiedAt = modifiedAt },
@@ -54,9 +48,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             new CategoryModel { Id = 4, Name = "Desserts", CreatedAt = createdAt, ModifiedAt = modifiedAt },
             new CategoryModel { Id = 5, Name = "Drinks", CreatedAt = createdAt, ModifiedAt = modifiedAt }
         );
-
-        // Soft delete: фільтр на IsDeleted, щоб видалені записи не потрапляли в запити
-        modelBuilder.Entity<RecipeModel>().HasQueryFilter(r => !r.IsDeleted);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

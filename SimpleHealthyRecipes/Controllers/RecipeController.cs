@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SimpleHealthyRecipes.Requests.Recipe;
+using SimpleHealthyRecipes.Responses.Recipe;
 using SimpleHealthyRecipes.Services.Interfaces;
 
 namespace SimpleHealthyRecipes.Controllers;
@@ -26,7 +27,8 @@ public class RecipeController(IRecipeService recipeService) : ControllerBase
     public async Task<IActionResult> GetById([FromRoute] int id)
     {
         var response = await recipeService.GetByIdAsync(new GetRecipeByIdRequest(id));
-        return response != null ? Ok(response) : NotFound(response);
+        var dataResponse = new RecipeResponse("", true, response);
+        return response != null ? Ok(dataResponse) : NotFound(dataResponse);
     }
 
     /// <summary>
